@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
 
-void flash_read_jedec_id();
 void flash_write_enable();
 void flash_wait_busy();
 void flash_sector_erase(uint32_t address);

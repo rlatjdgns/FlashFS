@@ -1,6 +1,11 @@
 #include "fs.h"
 #include "flash.h"
 
+void uart_send_byte(uint8_t data);
+void uart_send_string(const char* s);
+static uint8_t page_buf[256];
+static uint32_t last_written_sector = 0;
+
 
 void fs_init(){
     Superblock sb;
@@ -23,25 +28,33 @@ void fs_init(){
     }
 }
 
-
-uint32_t fs_find_free_sector(){
+//Return the sector with lowest erase count 
+    uint32_t fs_find_free_sector(){
     uint32_t lowest_erase_count = UINT32_MAX;
-    uint32_t best_sector = -1; 
+    uint32_t best_sector = 0xFFFFFFFF; 
+    
     for(uint16_t i = 4; i < FLASH_TOTAL_SECTORS; i++){
         AllocationEntry entry;
         uint32_t addr = ALLOC_TABLE_ADDR + i * sizeof(AllocationEntry);
         flash_read_data(addr, (uint8_t*)&entry, sizeof(AllocationEntry));
-        if(entry.state == SECTOR_FREE && entry.erase_count<lowest_erase_count){
-            lowest_erase_count = entry.erase_count;
-            best_sector = DATA_START_ADDR + (i - 4) * FLASH_SECTOR_SIZE;
+        
+        if(entry.state == SECTOR_FREE || entry.state == 0xFF){
+            if(entry.erase_count <= lowest_erase_count){
+                lowest_erase_count = entry.erase_count;
+                best_sector = DATA_START_ADDR + (i - 4) * FLASH_SECTOR_SIZE;
+            }
         }
     }
     return best_sector;
 }
 
+//
 void fs_create(const char*filename){
     for(uint8_t i=0; i<MAX_FILES;i++){
-        DirectoryEntry entry = {};
+        DirectoryEntry entry;
+        for(uint32_t k = 0; k < sizeof(DirectoryEntry); k++){
+            ((uint8_t*)&entry)[k] = 0;
+        } 
         uint32_t addr = SUPERBLOCK_ADDR + sizeof(Superblock) + i * sizeof(DirectoryEntry);
         flash_read_data(addr, (uint8_t*)&entry, sizeof(DirectoryEntry));
 
@@ -57,9 +70,16 @@ void fs_create(const char*filename){
     }
 }
 
-
 void fs_write(uint8_t file_id, uint8_t* data, uint32_t length){
     uint32_t free_sector = fs_find_free_sector();
+    last_written_sector = free_sector;
+    uart_send_string("free_sector: ");
+    uart_send_byte((free_sector >> 24) & 0xFF);
+    uart_send_byte((free_sector >> 16) & 0xFF);
+    uart_send_byte((free_sector >> 8) & 0xFF);
+    uart_send_byte((free_sector >> 0) & 0xFF);
+    uart_send_byte('\n');
+
     uint32_t bytes_remaining = length;
     uint32_t offset = 0;
     uint32_t page_addr = free_sector;
@@ -73,8 +93,6 @@ void fs_write(uint8_t file_id, uint8_t* data, uint32_t length){
         ph.file_offset = offset;
         ph.data_length = chunk_size;
         ph.crc = 0;
-
-        uint8_t page_buf[FLASH_PAGE_SIZE];
 
         // copy header into buffer
         for(uint32_t i = 0; i < sizeof(PageHeader); i++){
@@ -91,39 +109,54 @@ void fs_write(uint8_t file_id, uint8_t* data, uint32_t length){
         bytes_remaining -= chunk_size;
         page_addr += FLASH_PAGE_SIZE;
     }
-}
-
-void fs_read(uint8_t file_id, uint8_t * buffer, uint32_t length){
     for(int i=0; i<MAX_FILES;i++){
-        DirectoryEntry entry = {};
+        DirectoryEntry entry;
+        for(uint32_t k = 0; k < sizeof(DirectoryEntry); k++){
+            ((uint8_t*)&entry)[k] = 0;
+        }
         uint32_t addr = SUPERBLOCK_ADDR + sizeof(Superblock) + i * sizeof(DirectoryEntry);
         flash_read_data(addr, (uint8_t*)&entry, sizeof(DirectoryEntry));
+        if(entry.file_id==file_id){
+            uart_send_string("Found entry\n");
+            uart_send_byte(entry.file_id);
+            uart_send_byte(entry.status);    
+            entry.firstpage_addr = free_sector;
+            entry.file_size = length;
+            flash_page_program(addr, (uint8_t*)&entry, sizeof(DirectoryEntry));
+            // Update allocation table
+            uint32_t sector_index = (free_sector - DATA_START_ADDR) / FLASH_SECTOR_SIZE + 4;
+            AllocationEntry alloc;
+            uint32_t alloc_addr = ALLOC_TABLE_ADDR + sector_index * sizeof(AllocationEntry);
+            flash_read_data(alloc_addr, (uint8_t*)&alloc, sizeof(AllocationEntry));
+            alloc.state = SECTOR_ACTIVE;
+            alloc.erase_count += 1;
+            flash_page_program(alloc_addr, (uint8_t*)&alloc, sizeof(AllocationEntry));
+            return;
+        }
+    }
+  
+}
 
-        if(entry.file_id==file_id && entry.status==FILE_ACTIVE){
-            uint32_t bytes_remaining = length;
-            uint32_t offset = 0;
-            uint32_t page_addr = entry.firstpage_addr;
-            while(bytes_remaining>0){
-                PageHeader ph;  
-                uint8_t page_buf[FLASH_PAGE_SIZE];
-                flash_read_data(page_addr, page_buf, FLASH_PAGE_SIZE);
-
-                // extract header
-                for(uint32_t j = 0; j < sizeof(PageHeader); j++){
-                    ((uint8_t*)&ph)[j] = page_buf[j];
-                }
-
-                // copy data into buffer
-                for(uint32_t j = 0; j < ph.data_length; j++){
-                    buffer[offset + j] = page_buf[sizeof(PageHeader) + j];
-                }
-                    offset += ph.data_length;
-                    bytes_remaining -= ph.data_length;
-                    page_addr += FLASH_PAGE_SIZE;
-                    
-            }
-            return;    
+void fs_read(uint8_t file_id, uint8_t* buffer, uint32_t length){
+    uint32_t page_addr = last_written_sector;
+    uint32_t end_addr = last_written_sector + FLASH_SECTOR_SIZE;
+    
+    while(page_addr < end_addr){
+        uint8_t page_buf[FLASH_PAGE_SIZE];
+        flash_read_data(page_addr, page_buf, FLASH_PAGE_SIZE);
+        
+        PageHeader ph;
+        for(uint32_t j = 0; j < sizeof(PageHeader); j++){
+            ((uint8_t*)&ph)[j] = page_buf[j];
         }
         
+        if(ph.file_id == file_id && ph.state == PAGE_VALID){
+            for(uint32_t j = 0; j < ph.data_length; j++){
+                if(ph.file_offset + j < length){
+                    buffer[ph.file_offset + j] = page_buf[sizeof(PageHeader) + j];
+                }
+            }
+        }
+        page_addr += FLASH_PAGE_SIZE;
     }
 }

@@ -2,31 +2,17 @@
 #include "flash.h"
 #include "spi.h"
 
-void spi_transmit(uint8_t data);
-uint8_t spi_receive();
-void spi_nss_high();
-void spi_nss_low();
 void uart_send_byte(uint8_t data);
 void uart_send_string(const char* s);
 
-void flash_read_jedec_id(){
-    spi_nss_low();
-    spi_transmit(0x9F);
-    uint8_t b1 = spi_receive();
-    uint8_t b2 = spi_receive();
-    uint8_t b3 = spi_receive();
-    spi_nss_high();
-    uart_send_byte(b1);
-    uart_send_byte(b2);
-    uart_send_byte(b3);
-}
-
+//Set WEL to 1 to enable write 
 void flash_write_enable(){
     spi_nss_low();
     spi_transmit(0x06);
     spi_nss_high();
 }
 
+//Wait until the write in progress finish executing 
 void flash_wait_busy(){
     uint8_t status;
     do{
@@ -37,6 +23,7 @@ void flash_wait_busy(){
     }while(status & 0x01);
 }
 
+//Erase the sector of given address 
 void flash_sector_erase(uint32_t address){
     flash_write_enable();
     spi_nss_low();
@@ -48,6 +35,7 @@ void flash_sector_erase(uint32_t address){
     flash_wait_busy();
 }
 
+//Write the data into the address of the flash chip 
 void flash_page_program(uint32_t address, uint8_t* data, uint32_t length){
     flash_write_enable();
     spi_nss_low();
@@ -63,6 +51,7 @@ void flash_page_program(uint32_t address, uint8_t* data, uint32_t length){
     flash_wait_busy();
 }
 
+//Read the data from the specific address of flash chip and store in buffer 
 void flash_read_data(uint32_t address, uint8_t* buffer, uint32_t length){
     spi_nss_low();
     spi_transmit(0x03);

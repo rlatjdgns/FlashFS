@@ -3,7 +3,7 @@ CC = arm-none-eabi-g++
 CFLAGS = -mcpu=cortex-m3 -mthumb -nostdlib -nostartfiles -ffreestanding -fno-exceptions -fno-unwind-tables -O0 -g
 LDFLAGS = -T linker/stm32f103.ld -nostdlib
 
-SRCS = src/startup.cpp src/main.cpp src/uart.cpp src/spi.cpp src/flash.cpp
+SRCS = src/startup.cpp src/main.cpp src/uart.cpp src/spi.cpp src/flash.cpp src/fs.cpp
 OBJS = $(SRCS:.cpp=.o)
 
 all: $(TARGET).elf
