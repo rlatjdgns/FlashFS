@@ -60,8 +60,8 @@ struct Superblock{
     uint32_t alloc_table_addr;
 };
 
-void fs_init();
-void fs_create(const char*filename);
-void fs_write(uint8_t file_id, uint8_t * data, uint32_t length);
-void fs_read(uint8_t file_id, uint8_t * buffer, uint32_t length);
+int  fs_init();
+int  fs_create(const char* filename);
+int  fs_write(uint8_t file_id, uint8_t * data, uint32_t length);
+int  fs_read(uint8_t file_id, uint8_t * buffer, uint32_t length);
 uint32_t fs_find_free_sector();
