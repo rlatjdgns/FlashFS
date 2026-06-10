@@ -21,8 +21,8 @@ int fs_init(){
     Superblock sb;
     flash_read_data(SUPERBLOCK_ADDR, (uint8_t*)&sb, sizeof(Superblock));
 
-    if(sb.magic == 0xDEADBEEF){
-        //Flash already formatted — validate geometry matches compile-time constants
+    if(sb.magic == 0xDEADBEEF && sb.version == FS_FORMAT_VERSION){
+        //Flash already formatted with the current layout — validate geometry
         if(sb.total_sectors != FLASH_TOTAL_SECTORS ||
            sb.sector_size   != FLASH_SECTOR_SIZE   ||
            sb.page_size     != FLASH_PAGE_SIZE)
@@ -30,10 +30,10 @@ int fs_init(){
         return 0;
     }
 
-    //Magic not found — format the flash from scratch
+    //Magic missing OR stale layout version — (re)format the flash from scratch
     Superblock fresh;
     fresh.magic = 0xDEADBEEF;
-    fresh.version = 1;
+    fresh.version = FS_FORMAT_VERSION;
     fresh.total_sectors = FLASH_TOTAL_SECTORS;
     fresh.sector_size = FLASH_SECTOR_SIZE;
     fresh.page_size = FLASH_PAGE_SIZE;
@@ -47,11 +47,11 @@ int fs_init(){
     //Zero-initialize the allocation table so all sectors start as SECTOR_FREE
     for(uint32_t k = 0; k < sizeof(sector_buf); k++)
         sector_buf[k] = 0x00;
-    
-    //Calculate how many flash sectors the allocation table needs -> 3 
+
+    //Calculate how many flash sectors the allocation table needs -> 3
         uint32_t alloc_sectors = (FLASH_TOTAL_SECTORS * sizeof(AllocationEntry) + FLASH_SECTOR_SIZE - 1) / FLASH_SECTOR_SIZE;
-    
-    //computing the flash address of each allocation table sectors     
+
+    //computing the flash address of each allocation table sectors
     for(uint32_t s = 0; s < alloc_sectors; s++){
         uint32_t addr = ALLOC_TABLE_ADDR + s * FLASH_SECTOR_SIZE;
         flash_sector_erase(addr);
@@ -101,8 +101,29 @@ uint32_t fs_find_free_sector(){
     return best_sector;
 }
 
-//Finds an empty directory slot and writes a new DirectoryEntry into it
+//Compare two filenames up to the 16-byte field; returns 1 if equal
+static int name_eq(const char* a, const char* b){
+    for(int j = 0; j < 16; j++){
+        if(a[j] != b[j]) return 0;
+        if(a[j] == '\0') return 1;
+    }
+    return 1;
+}
+
+//Returns the file_id of an existing file, or creates a new one in the first
+//free slot. Idempotent: calling it again with the same name (e.g. on every
+//boot) returns the existing id instead of writing a duplicate entry.
 int fs_create(const char* filename){
+    //First pass: if the file already exists, return its id — no write.
+    for(uint8_t i = 0; i < MAX_FILES; i++){
+        DirectoryEntry entry;
+        uint32_t addr = SUPERBLOCK_ADDR + sizeof(Superblock) + i * sizeof(DirectoryEntry);
+        flash_read_data(addr, (uint8_t*)&entry, sizeof(DirectoryEntry));
+        if(entry.status == FILE_ACTIVE && name_eq(entry.filename, filename))
+            return entry.file_id;
+    }
+
+    //Second pass: claim the first free slot and write a new entry.
     for(uint8_t i = 0; i < MAX_FILES; i++){
         //Read existing slot to check if it is free
         DirectoryEntry entry;
@@ -115,6 +136,7 @@ int fs_create(const char* filename){
                 ((uint8_t*)&entry)[k] = 0;
             entry.status = FILE_ACTIVE;
             entry.file_id = i;
+            entry.firstpage_addr = 0xFFFFFFFF;   // no data yet: fs_read returns -1 until first write (0 is a real addr: the superblock)
 
             //Copy filename safely: max 15 chars + null terminator at [15]
             for(int j = 0; j < 15; j++){
@@ -144,8 +166,9 @@ int fs_create(const char* filename){
 int fs_write(uint8_t file_id, uint8_t* data, uint32_t length){
     //Locate free sector; return early if flash is full
     uint32_t free_sector = fs_find_free_sector();
-    if(free_sector == 0xFFFFFFFF)
+    if(free_sector == 0xFFFFFFFF){
         return -1;
+    }
     last_written_sector = free_sector;
 
     //Erase sector before writing so all bits start at 1
@@ -229,8 +252,11 @@ int fs_read(uint8_t file_id, uint8_t* buffer, uint32_t length){
             break;
         }
     }
-    if(start_addr == 0xFFFFFFFF)
+    if(start_addr == 0xFFFFFFFF){
+        //Directory lookup failed: no active entry for this file_id.
+        //=> fs_write never updated firstpage_addr, or fs_create slot mismatch.
         return -1;
+    }
 
     //Scan all pages in the sector and reassemble the file
     uint32_t page_addr = start_addr;
@@ -251,8 +277,10 @@ int fs_read(uint8_t file_id, uint8_t* buffer, uint32_t length){
         if(ph.file_id == file_id && ph.state == PAGE_VALID){
             //Verify CRC before trusting the payload
             uint16_t computed = crc16(page_buf + sizeof(PageHeader), ph.data_length);
-            if(computed != ph.crc)
+            if(computed != ph.crc){
+                //Page found but data corrupted: SPI read-back or header layout issue.
                 return -1;
+            }
 
             //Copy payload into caller's buffer at the correct file offset
             for(uint32_t j = 0; j < ph.data_length; j++){
