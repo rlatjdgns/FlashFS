@@ -42,8 +42,58 @@ static void test_unwritten_file_returns_error() {
     CHECK(rc == -1);
 }
 
+// A non-zero file_id round-trips once the file has been created.
+static void test_roundtrip_nonzero_fileid() {
+    flash_reset();
+    fs_init();
+    fs_create("s00");             // id 0
+    int id = fs_create("s01");    // id 1
+    CHECK(id == 1);
+
+    SensorReading w; w.seq = 42; w.temp = 2805;
+    CHECK(fs_write((uint8_t)id, (uint8_t*)&w, sizeof(w)) == 0);
+
+    SensorReading r; r.seq = 0; r.temp = 0;
+    CHECK(fs_read((uint8_t)id, (uint8_t*)&r, sizeof(r)) == 0);
+    CHECK(r.seq == 42 && r.temp == 2805);
+}
+
+// Data survives a simulated reboot: fs_init again without erasing flash, then read.
+static void test_persistence_across_reinit() {
+    flash_reset();
+    fs_init();
+    fs_create("s00");
+    SensorReading w; w.seq = 7; w.temp = 2900;
+    CHECK(fs_write(0, (uint8_t*)&w, sizeof(w)) == 0);
+
+    // "reboot": re-init WITHOUT clearing flash_mem
+    CHECK(fs_init() == 0);          // already formatted -> no reformat
+    CHECK(fs_create("s00") == 0);   // idempotent by name -> same id
+
+    SensorReading r; r.seq = 0; r.temp = 0;
+    CHECK(fs_read(0, (uint8_t*)&r, sizeof(r)) == 0);
+    CHECK(r.seq == 7 && r.temp == 2900);
+}
+
+// Creating files in order assigns file_id == creation index; 33rd has no slot.
+static void test_create_assigns_sequential_ids() {
+    flash_reset();
+    fs_init();
+    char name[4]; name[0] = 's';
+    for (uint8_t i = 0; i < MAX_FILES; i++) {
+        name[1] = '0' + (i / 10);
+        name[2] = '0' + (i % 10);
+        name[3] = '\0';
+        CHECK(fs_create(name) == (int)i);
+    }
+    CHECK(fs_create("zz") == -1);   // all MAX_FILES slots occupied
+}
+
 int main() {
     test_unwritten_file_returns_error();
+    test_roundtrip_nonzero_fileid();
+    test_persistence_across_reinit();
+    test_create_assigns_sequential_ids();
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d CHECK(s) FAILED\n", g_failures);
     return 1;
