@@ -54,8 +54,8 @@ Bottom-up, each layer a thin register-level interface:
 `main.cpp` runs a persistent sensor-logging loop:
 
 1. Initializes UART/SPI/FS/BME280 and creates 32 per-slot files (`file_id` 0–31).
-2. **Each iteration** (~24 s apart — an uncalibrated busy-wait delay, not a timer): reads the BME280 temperature, writes a `SensorReading {seq, temp in units of 0.01°C}` to slot `seq % 32`, and streams the live value over UART as a big-endian `int32`.
-3. **Every 5th iteration:** reads back all 32 slots (CRC-verified) and streams the stored values — proving round-trip integrity.
+2. **Each iteration** (~24 s apart — an uncalibrated busy-wait delay, not a timer): reads the BME280 temperature, writes a `SensorReading {seq, temp in units of 0.01°C}` to slot `seq % 32`, and streams a live `seq + temp` record (big-endian `uint32` + `int32`) over UART.
+3. **Every 5th iteration:** wraps a readback of all 32 slots in `READBACK:` / `END` markers, streaming each stored `seq + temp` record (CRC-verified) — proving round-trip integrity.
 4. **Power-cycle persistence:** on boot `fs_init` finds the existing superblock and reuses the directory, so prior readings are immediately readable.
 
 `tools/listen.py` decodes the mixed text/binary UART stream on the host.
