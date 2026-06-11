@@ -60,6 +60,16 @@ Bottom-up, each layer a thin register-level interface:
 
 `tools/listen.py` decodes the mixed text/binary UART stream on the host.
 
+## Visualization
+
+`tools/visualize.py` plots the UART stream live with matplotlib. The **blue line** is the temperature the BME280 measures each loop; the **orange dots** are readings the firmware reads back out of flash every 5th loop, each placed at its stored sequence number. Dots tracking the line confirm the file system stores and returns data intact. The capture below shows the last 32 stored readings as a rising history with live points at the leading edge — real data over UART from the board.
+
+![Live temperature plot — blue live-sensor line and orange flash-readback dots](docs/visualize-demo.png)
+
+```bash
+python3 tools/visualize.py /dev/cu.usbserial-0001 115200
+```
+
 ## Build and Flash
 
 Toolchain: `arm-none-eabi-g++`, OpenOCD, ST-Link V2.
