@@ -5,7 +5,7 @@
 #include "flash.h"
 #include "demo.h"   // SensorReading { uint32_t seq; int32_t temp; }
 
-// ---- RAM-backed flash stub. W25Q64 is 8 MiB; size up for headroom. ----
+// ---- RAM-backed flash stub. EN25Q64 is 8 MiB; size up for headroom. ----
 // fs.cpp calls only these three flash functions.
 static uint8_t flash_mem[9 * 1024 * 1024];
 

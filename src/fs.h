@@ -10,7 +10,7 @@
 #define FILE_ACTIVE  0x01
 #define FILE_DELETED 0x00
 
-// W25Q64 geometry
+// EN25Q64 geometry
 #define FLASH_TOTAL_SECTORS  2048
 #define FLASH_SECTOR_SIZE    4096
 #define FLASH_PAGE_SIZE      256
