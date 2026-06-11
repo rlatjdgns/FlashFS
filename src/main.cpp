@@ -6,6 +6,12 @@
 
 void spi_init();
 
+static void uart_send_u32(uint32_t v){
+    uart_send_byte((v >> 24) & 0xFF);
+    uart_send_byte((v >> 16) & 0xFF);
+    uart_send_byte((v >> 8)  & 0xFF);
+    uart_send_byte((v >> 0)  & 0xFF);
+}
 
 int main(){
     *(volatile uint32_t*)0x40021018 |= (1<<4);
@@ -37,11 +43,10 @@ int main(){
         reading.seq = seq; 
         reading.temp = T; 
         fs_write(seq % MAX_FILES, (uint8_t*)&reading, sizeof(SensorReading));
-        uart_send_byte((T >> 24) & 0xFF);
-        uart_send_byte((T >> 16) & 0xFF);
-        uart_send_byte((T >> 8) & 0xFF);
-        uart_send_byte((T >> 0) & 0xFF);
+        uart_send_u32(seq);
+        uart_send_u32((uint32_t)T);
         if(seq > 0 && seq % 5 == 0){
+            uart_send_string("READBACK:\n");
             for(uint8_t fid = 0; fid < MAX_FILES; fid++){
                 SensorReading r;
                 r.seq = 0;
@@ -49,12 +54,11 @@ int main(){
                 // fs_read returns 0 only when real data was copied; -1 for an
                 // unwritten/missing slot or a CRC failure -> skip it.
                 if(fs_read(fid, (uint8_t*)&r, sizeof(SensorReading)) == 0){
-                    uart_send_byte((r.temp >> 24) & 0xFF);
-                    uart_send_byte((r.temp >> 16) & 0xFF);
-                    uart_send_byte((r.temp >> 8) & 0xFF);
-                    uart_send_byte((r.temp >> 0) & 0xFF);
+                    uart_send_u32(r.seq);
+                    uart_send_u32((uint32_t)r.temp);
                 }
             }
+            uart_send_string("END\n");
         }
         for(volatile int i = 0; i < 10000000; i++);
         seq++;
