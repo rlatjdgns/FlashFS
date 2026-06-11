@@ -14,11 +14,8 @@ int main(){
 
     uart_init();
     uart_send_string("STM32 booted\n");
-    uart_send_string("spi init\n");    
     spi_init();
-    uart_send_string("fs init\n");     
     fs_init();
-    uart_send_string("fs create\n");
     // One file per slot: file_id 0..MAX_FILES-1. Idempotent across reboots.
     char name[4];
     name[0] = 's';
