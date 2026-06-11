@@ -1,12 +1,11 @@
 #include <stdint.h>
-void uart_init();
-void uart_send_string(const char* s);
-void uart_send_byte(uint8_t data);
+#include "demo.h"
+#include "fs.h"
+#include "uart.h"
+#include "bme280.h"
+
 void spi_init();
-void fs_init();
-void fs_create(const char* filename);
-void fs_write(uint8_t file_id, uint8_t* data, uint32_t length);
-void fs_read(uint8_t file_id, uint8_t* buffer, uint32_t length);
+
 
 int main(){
     *(volatile uint32_t*)0x40021018 |= (1<<4);
@@ -15,30 +14,53 @@ int main(){
 
     uart_init();
     uart_send_string("STM32 booted\n");
+    uart_send_string("spi init\n");    
     spi_init();
-    uart_send_string("SPI done\n");
+    uart_send_string("fs init\n");     
     fs_init();
-    uart_send_string("fs_init done\n");
-    fs_create("sensor.bin");
-    uart_send_string("fs_create done\n");
-
-    uint8_t write_data[10] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A};
-    fs_write(0, write_data, 10);
-    uart_send_string("fs_write done\n");
-
-    uint8_t read_data[10] = {0};
-    fs_read(0, read_data, 10);
-    uart_send_string("fs_read done\n");
-    for(int i = 0; i < 10; i++){
-        uart_send_byte(read_data[i]);
+    uart_send_string("fs create\n");
+    // One file per slot: file_id 0..MAX_FILES-1. Idempotent across reboots.
+    char name[4];
+    name[0] = 's';
+    for(uint8_t i = 0; i < MAX_FILES; i++){
+        name[1] = '0' + (i / 10);
+        name[2] = '0' + (i % 10);
+        name[3] = '\0';
+        fs_create(name);
     }
-    uart_send_byte('\n');
 
+    bme280_init();
+
+    uint32_t seq = 0;
+    
     while(true){
-        *(volatile uint32_t*)0x4001100C |= (1<<13);
-        for(volatile int i = 0; i < 1000000; i++);
-        *(volatile uint32_t*)0x4001100C &= ~(1<<13);
-        for(volatile int i = 0; i < 1000000; i++);
+        int32_t T = bme280_read_temp();
+
+        SensorReading reading;
+        reading.seq = seq; 
+        reading.temp = T; 
+        fs_write(seq % MAX_FILES, (uint8_t*)&reading, sizeof(SensorReading));
+        uart_send_byte((T >> 24) & 0xFF);
+        uart_send_byte((T >> 16) & 0xFF);
+        uart_send_byte((T >> 8) & 0xFF);
+        uart_send_byte((T >> 0) & 0xFF);
+        if(seq > 0 && seq % 5 == 0){
+            for(uint8_t fid = 0; fid < MAX_FILES; fid++){
+                SensorReading r;
+                r.seq = 0;
+                r.temp = 0;
+                // fs_read returns 0 only when real data was copied; -1 for an
+                // unwritten/missing slot or a CRC failure -> skip it.
+                if(fs_read(fid, (uint8_t*)&r, sizeof(SensorReading)) == 0){
+                    uart_send_byte((r.temp >> 24) & 0xFF);
+                    uart_send_byte((r.temp >> 16) & 0xFF);
+                    uart_send_byte((r.temp >> 8) & 0xFF);
+                    uart_send_byte((r.temp >> 0) & 0xFF);
+                }
+            }
+        }
+        for(volatile int i = 0; i < 10000000; i++);
+        seq++;
     }
     return 0;
 }
