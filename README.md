@@ -73,8 +73,8 @@ make test        # host unit tests (RAM-backed flash stub — no hardware needed
 
 ## Key Technical Challenges
 
-- **SPI full-duplex stale RXNE.** In full-duplex master mode every transmit also clocks a byte *in*, setting RXNE; leaving it undrained desyncs all subsequent reads. The byte routine drains RXNE before each transfer and discards the shifted-in byte after.
-- **NOR program model.** NOR flips bits only 1→0; a sector must be erased to `0xFF` before programming. The FS erases before writing and uses read-modify-erase-rewrite for in-place superblock/allocation updates.
-- **I2C single-byte receive (EV6_1).** For a 1-byte read, ACK must be cleared and STOP scheduled *inside* the EV6_1 window — before clearing ADDR (reading SR2) — per RM0008, or the transfer NACKs/misclocks. The read path follows the exact clear-ACK → read-SR2 → set-STOP → wait-RXNE → read-DR order.
-- **Brownout during sector erase.** A 4 KB erase draws a current spike that sags the 3.3 V rail, causing resets/glitches. Traced over UART; made observable via bounded timeouts and explicit WIP-timeout reporting so a browned-out flash never fails silently.
-- **Root-causing implausible readings.** The demo intermittently emitted wild temperatures (e.g. −15,746,508 °C). The obvious suspect was a failed I2C read, but an arithmetic bound disproved it: the compensated output is mathematically constrained to roughly [−150, +200] °C, so the sensor path *cannot* produce billion-magnitude values. The real cause was the flash readback path printing an **uninitialized buffer** when `fs_read` failed on a never-created `file_id`. Fixed with per-slot files, a `firstpage_addr` sentinel, and return-code checks; confirmed on hardware and with off-target unit tests.
+- **SPI full-duplex stale RXNE** — draining the shifted-in byte after every transmit to keep reads in sync.
+- **NOR write model** — erase-before-write, since NOR clears bits only 1→0.
+- **I2C single-byte receive (EV6_1)** — the exact ACK/STOP ordering a 1-byte read requires per RM0008.
+- **Brownout during sector erase** — the erase current spike sags the 3.3 V rail; surfaced with bounded timeouts.
+- **Root-causing implausible readings** — traced wild temperatures to an uninitialized readback buffer, not a failed I2C read.
