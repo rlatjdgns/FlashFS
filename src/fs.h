@@ -14,7 +14,7 @@
 #define FLASH_TOTAL_SECTORS  2048
 #define FLASH_SECTOR_SIZE    4096
 #define FLASH_PAGE_SIZE      256
-#define FLASH_DATA_SIZE      247   // 256 - sizeof(PageHeader)
+#define FLASH_DATA_SIZE      244   // 256 - sizeof(PageHeader); PageHeader is 12 bytes (with padding)
 
 // Fixed addresses
 #define SUPERBLOCK_ADDR      0x000000
@@ -27,6 +27,11 @@
 #define SECTOR_FULL    0x02
 
 #define MAX_FILES 32
+
+// On-flash layout version. BUMP THIS whenever any on-flash struct size/layout
+// changes (e.g. AllocationEntry packing) so fs_init force-reformats stale flash
+// instead of misreading an old layout.
+#define FS_FORMAT_VERSION 2
 
 struct PageHeader {
     uint8_t  state;
@@ -45,10 +50,14 @@ struct DirectoryEntry{
     uint8_t status;
 };
 
+// Packed to 5 bytes so the allocation table fits in the 3 sectors reserved
+// between ALLOC_TABLE_ADDR (0x001000) and DATA_START_ADDR (0x004000).
+// Unpacked it pads to 8 bytes -> table needs 4 sectors and the 4th would
+// overwrite data sector 0.
 struct AllocationEntry {
     uint8_t  state;
     uint32_t erase_count;
-};
+} __attribute__((packed));
 
 struct Superblock{
     uint32_t magic;

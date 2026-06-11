@@ -2,3 +2,5 @@
 *.elf
 *.bin
 *.map
+build/
+__pycache__/

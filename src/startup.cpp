@@ -9,8 +9,19 @@ typedef void (*handler_t)(void);
 int main(void);
 void reset_handler(void);
 
+//Default trap for any unhandled exception — spin so a fault is observable instead of corrupting flow
+static void default_handler(void){ while(1); }
+
 __attribute__((section(".isr_vector")))
-const handler_t vector_table[] = {(handler_t)(0x20000000 + 20 * 1024),reset_handler};
+const handler_t vector_table[] = {
+    (handler_t)(0x20000000 + 20 * 1024),  // 0: Initial stack pointer
+    reset_handler,                         // 1: Reset
+    default_handler,                       // 2: NMI
+    default_handler,                       // 3: HardFault
+    default_handler,                       // 4: MemManage
+    default_handler,                       // 5: BusFault
+    default_handler,                       // 6: UsageFault
+};
 
 void reset_handler(){
     uint32_t *src = &_data_load;

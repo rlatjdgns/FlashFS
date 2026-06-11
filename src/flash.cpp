@@ -12,14 +12,25 @@ void flash_write_enable(){
     spi_nss_high();
 }
 
-//Wait until the write in progress finish executing 
+//Wait until the write in progress finish executing (bounded so a stuck/absent
+//flash can't hang the CPU forever — bails out after the timeout expires)
 void flash_wait_busy(){
     uint8_t status;
+    uint32_t timeout = 4000000;   // generous: sector erase can take ~100s of ms
     do{
         spi_nss_low();
         spi_transmit(0x05);
         status = spi_receive();
         spi_nss_high();
+        if(--timeout == 0){
+            //WIP never cleared — flash didn't finish the erase/program. This is
+            //NOT silent: announce it so a stuck/browned-out flash is visible.
+            uart_send_string("FLASH:WIP-TIMEOUT (last status=");
+            uart_send_byte("0123456789ABCDEF"[(status >> 4) & 0xF]);
+            uart_send_byte("0123456789ABCDEF"[status & 0xF]);
+            uart_send_string(")\n");
+            break;
+        }
     }while(status & 0x01);
 }
 
