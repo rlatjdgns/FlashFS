@@ -113,10 +113,27 @@ def wear_chart(alloc_entries, path):
 
 
 def main():
-    import sys, serial
-    if len(sys.argv) != 3:
-        sys.exit("usage: python3 flash_analyzer.py <port> <baud>")
-    ser = serial.Serial(sys.argv[1], int(sys.argv[2]), timeout=0.3)
+    import sys
+    args = sys.argv[1:]
+
+    # Offline mode: chart a saved allocation-table blob (e.g. tools/stress_result.bin).
+    if len(args) >= 2 and args[0] == "--file":
+        with open(args[1], "rb") as f:
+            alloc = f.read()
+        entries = parse_alloc_table(alloc)
+        active = [e for e in entries if e[1] == SECTOR_ACTIVE]
+        er = [e[2] for e in active]
+        print(f"ALLOC (from {args[1]}): active={len(active)} "
+              f"erase min/max/avg={min(er) if er else 0}/{max(er) if er else 0}/"
+              f"{(sum(er)/len(er)) if er else 0:.2f}")
+        wear_chart(entries, "docs/wear-leveling.png")
+        return
+
+    # Live mode: trigger a board dump over UART.
+    import serial
+    if len(args) != 2:
+        sys.exit("usage: python3 flash_analyzer.py <port> <baud>  |  --file <path>")
+    ser = serial.Serial(args[0], int(args[1]), timeout=0.3)
     print("Press the board RESET button now...", file=sys.stderr)
     sector0, alloc, sectors = read_dump(ser)
     ser.close()
