@@ -70,6 +70,14 @@ Bottom-up, each layer a thin register-level interface:
 python3 tools/visualize.py /dev/cu.usbserial-0001 115200
 ```
 
+## Flash image analyzer
+
+`tools/flash_analyzer.py` dumps and decodes the raw on-flash image off-target. Send the board the byte `0xDD` within ~2 s of reset and it streams sector 0, the allocation table, and every active data sector over UART (read-only, before `fs_init`, so the image is untouched). The analyzer triggers this, then prints the superblock, directory, allocation-table wear stats, and per-page CRC pass/fail, and renders a wear-leveling bar chart (`docs/wear-leveling.png`).
+
+```bash
+python3 tools/flash_analyzer.py /dev/cu.usbserial-0001 115200   # then press RESET
+```
+
 ## Build and Flash
 
 Toolchain: `arm-none-eabi-g++`, OpenOCD, ST-Link V2.
