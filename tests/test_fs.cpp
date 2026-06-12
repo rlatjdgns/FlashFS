@@ -5,23 +5,7 @@
 #include "flash.h"
 #include "demo.h"   // SensorReading { uint32_t seq; int32_t temp; }
 
-// ---- RAM-backed flash stub. EN25Q64 is 8 MiB; size up for headroom. ----
-// fs.cpp calls only these three flash functions.
-static uint8_t flash_mem[9 * 1024 * 1024];
-
-static void flash_reset() { memset(flash_mem, 0xFF, sizeof(flash_mem)); }
-
-void flash_sector_erase(uint32_t address) {
-    uint32_t base = address & ~((uint32_t)(FLASH_SECTOR_SIZE - 1));
-    memset(&flash_mem[base], 0xFF, FLASH_SECTOR_SIZE);
-}
-void flash_page_program(uint32_t address, uint8_t* data, uint32_t length) {
-    // NOR flash programs 1->0 only; sectors are erased (0xFF) before programming.
-    for (uint32_t i = 0; i < length; i++) flash_mem[address + i] &= data[i];
-}
-void flash_read_data(uint32_t address, uint8_t* buffer, uint32_t length) {
-    for (uint32_t i = 0; i < length; i++) buffer[i] = flash_mem[address + i];
-}
+#include "flash_stub.h"
 
 // ---- Tiny assertion harness ----
 static int g_failures = 0;
