@@ -31,3 +31,8 @@ test:
 	mkdir -p build
 	$(HOSTCXX) -std=c++17 -I src -O0 -g -Wall -o build/test_fs tests/test_fs.cpp src/fs.cpp
 	./build/test_fs
+
+stress:
+	mkdir -p build
+	$(HOSTCXX) -std=c++17 -I src -O0 -g -o build/stress_test tests/stress_test.cpp src/fs.cpp
+	./build/stress_test
