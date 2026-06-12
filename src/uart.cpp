@@ -15,8 +15,19 @@ void uart_init(){
     //Write BAUDRATE in Baudrate register
     *(volatile uint32_t*)0x40013808 = 69;
     
-    //Enable UART and transmitter for USART1 CR 1 
-    *(volatile uint32_t*)0x4001380C |= (1<<13)|(1<<3);
+    //Enable UART, transmitter, and receiver for USART1 CR1
+    *(volatile uint32_t*)0x4001380C |= (1<<13)|(1<<3)|(1<<2);
+}
+
+//Byte waiting in the receive register? (SR bit5 = RXNE)
+int uart_rx_ready(){
+    return (*(volatile uint32_t*)0x40013800) & (1<<5);
+}
+
+//Block until a byte arrives, then return it from DR.
+uint8_t uart_receive(){
+    while(!((*(volatile uint32_t*)0x40013800) & (1<<5)));
+    return *(volatile uint32_t*)0x40013804;
 }
 
 //Accept new byte for DR when bit7 of SR is 1 
