@@ -4,3 +4,8 @@
 *.map
 build/
 __pycache__/
+
+# committed sample wear data for flash_analyzer --file (overrides *.bin)
+!tools/stress_result.bin
+# transient analyzer chart output (the committed ones are -early/-full)
+docs/wear-leveling.png
