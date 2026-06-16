@@ -14,8 +14,29 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 | CP2102 USB-UART Adapter | 1 |
 | ST-Link V2 Programmer | 1 |
 
-## Wiring 
 ## Wiring
+
+EN25Q64 SPI NOR Flash → STM32 (SPI1):
+
+* CS → PA4 (NSS, chip select)
+* CLK → PA5 (SCK)
+* DO → PA6 (MISO)
+* DI → PA7 (MOSI)
+* VCC → 3.3V
+* GND → GND
+
+BME280 → STM32 (I2C1, 100kHz):
+
+* SCL → PB6 (I2C clock)
+* SDA → PB7 (I2C data)
+* VCC → 3.3V
+* GND → GND
+
+CP2102 USB-UART → STM32 (USART1, 115200 baud):
+
+* RXD → PA9 (STM32 TX)
+* TXD → PA10 (STM32 RX)
+* GND → GND
 
 ### EN25Q64 SPI NOR Flash (SPI1)
 | Flash Pin | STM32 Pin | Function |
