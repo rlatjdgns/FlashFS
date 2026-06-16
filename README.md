@@ -18,7 +18,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 
 
 ## Architecture
-<img src="docs/architecture.png" width="500">
+![Hardware Architecture](docs/architecture.png)
 **Flash layout** (2048 × 4 KB sectors):
 
 | Region | Address | Contents |
@@ -52,6 +52,9 @@ Bottom-up, each layer a thin register-level interface:
 ## Visualization
 
 `tools/visualize.py` plots the UART stream live with matplotlib. The **blue line** is the temperature the BME280 measures each loop; the **orange dots** are readings the firmware reads back out of flash every 5th loop, each placed at its stored sequence number. Dots tracking the line confirm the file system stores and returns data intact. The capture below shows the last 32 stored readings as a rising history with live points at the leading edge — real data over UART from the board.
+
+<img src="docs/wear-leveling-early.png" width="500">
+<img src="docs/wear-leveling-full.png" width="500">
 
 ![Live temperature plot — blue live-sensor line and orange flash-readback dots](docs/visualize-demo.png)
 ![Early wear-leveliing](docs/wear-leveling-early.png)
