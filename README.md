@@ -55,6 +55,9 @@ Bottom-up, each layer a thin register-level interface:
 
 ![Live temperature plot — blue live-sensor line and orange flash-readback dots](docs/visualize-demo.png)
 <p align="center">
+  <img src="docs/visualize-demo.png" width="70%">
+</p>  
+<p align="center">
   <img src="docs/wear-leveling-early.png" width="45%">
   <img src="docs/wear-leveling-full.png" width="45%">
 </p>
