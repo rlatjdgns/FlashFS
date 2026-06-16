@@ -42,14 +42,6 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 | TXD | PA10 | STM32 RX |
 | GND | GND  | Ground |
 
-### ST-Link V2 (SWD)
-| ST-Link Pin | STM32 Pin | Function |
-|-------------|-----------|----------|
-| SWDIO | PA13 | SWD data |
-| SWCLK | PA14 | SWD clock |
-| 3.3V  | 3.3V | Power |
-| GND   | GND  | Ground |
-
 ## Architecture
 ![Hardware Architecture](docs/architecture.png)
 **Flash layout** (2048 × 4 KB sectors):
