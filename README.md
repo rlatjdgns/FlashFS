@@ -18,7 +18,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 
 
 ## Architecture
-![Hardware Architecture Diagram](docs/architecture.png)
+<img src="docs/architecture.png" width="500">
 **Flash layout** (2048 × 4 KB sectors):
 
 | Region | Address | Contents |
