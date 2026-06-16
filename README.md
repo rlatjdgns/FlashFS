@@ -53,9 +53,8 @@ Bottom-up, each layer a thin register-level interface:
 
 `tools/visualize.py` plots the UART stream live with matplotlib. The **blue line** is the temperature the BME280 measures each loop; the **orange dots** are readings the firmware reads back out of flash every 5th loop, each placed at its stored sequence number. Dots tracking the line confirm the file system stores and returns data intact. The capture below shows the last 32 stored readings as a rising history with live points at the leading edge — real data over UART from the board.
 
-![Live temperature plot — blue live-sensor line and orange flash-readback dots](docs/visualize-demo.png)
 <p align="center">
-  <img src="docs/visualize-demo.png" width="70%">
+  <img src="docs/visualize-demo.png" width="50%">
 </p>  
 <p align="center">
   <img src="docs/wear-leveling-early.png" width="45%">
