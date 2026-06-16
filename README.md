@@ -16,8 +16,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 
 ## Wiring
 
-EN25Q64 SPI NOR Flash → STM32 (SPI1):
-
+**EN25Q64 SPI NOR Flash → STM32 (SPI1):**
 * CS → PA4 (NSS, chip select)
 * CLK → PA5 (SCK)
 * DO → PA6 (MISO)
@@ -25,43 +24,16 @@ EN25Q64 SPI NOR Flash → STM32 (SPI1):
 * VCC → 3.3V
 * GND → GND
 
-BME280 → STM32 (I2C1, 100kHz):
-
+**BME280 → STM32 (I2C1, 100kHz):**
 * SCL → PB6 (I2C clock)
 * SDA → PB7 (I2C data)
 * VCC → 3.3V
 * GND → GND
 
-CP2102 USB-UART → STM32 (USART1, 115200 baud):
-
+**CP2102 USB-UART → STM32 (USART1, 115200 baud):**
 * RXD → PA9 (STM32 TX)
 * TXD → PA10 (STM32 RX)
 * GND → GND
-
-### EN25Q64 SPI NOR Flash (SPI1)
-| Flash Pin | STM32 Pin | Function |
-|-----------|-----------|----------|
-| CS   | PA4 | NSS (chip select) |
-| CLK  | PA5 | SCK |
-| DO   | PA6 | MISO |
-| DI   | PA7 | MOSI |
-| VCC  | 3.3V | Power |
-| GND  | GND | Ground |
-
-### BME280 (I2C1)
-| BME280 Pin | STM32 Pin | Function |
-|------------|-----------|----------|
-| SCL | PB6 | I2C clock |
-| SDA | PB7 | I2C data |
-| VCC | 3.3V | Power |
-| GND | GND | Ground |
-
-### CP2102 USB-UART (USART1)
-| CP2102 Pin | STM32 Pin | Function |
-|------------|-----------|----------|
-| RXD | PA9  | STM32 TX |
-| TXD | PA10 | STM32 RX |
-| GND | GND  | Ground |
 
 ## Architecture
 ![Hardware Architecture](docs/architecture.png)
