@@ -1,22 +1,21 @@
 # STM32 Bare-Metal Flash File System
-
-A wear-leveled, CRC-protected file system on external SPI NOR flash, written for the STM32F103C8T6 with **zero HAL, CMSIS, or stdlib** — startup code, linker script, drivers, and file system all from scratch via direct register access.
+A baremental flash file system for STM32 Blue Pill from scratch in C++, uilding up from low-level hardware drivers to a working filesystem layer with zero external dependencies.
 
 ## Project Overview
 
 A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer — reset/vector table, `.data`/`.bss` init, UART/SPI/I2C drivers, the EN25Q64 NOR command layer, and the file system itself — is hand-written against the reference manual with no vendor abstractions and no C library. It persists BME280 sensor readings to an 8 MB SPI NOR chip with wear leveling, per-page CRC integrity, and power-cycle persistence.
 
 ## Hardware
+| Component | Quantity |
+|-----------|----------|
+| STM32 | 1 |
+| EN25Q64 SPI NOR Flash (8MB) | 1 |
+| Bosch BME280| 1 |
+| CP2102 USB-UART Adapter | 1 |
+| ST-Link V2 Programmer | 1 |
 
-- **MCU:** STM32F103C8T6 — Cortex-M3, 64 KB flash, 20 KB SRAM. Runs on the **8 MHz HSI** (no PLL/clock-tree init).
-- **SPI flash:** EN25Q64 — 8 MB (64 Mbit) SPI NOR, 4 KB sectors, 256 B pages.
-- **Sensor:** Bosch BME280 (temperature), I2C address `0x76`.
-- **Programmer:** ST-Link V2 (SWD) via OpenOCD.
-- **Host link:** CP2102 USB-UART bridge @ 115200 baud.
-- **Pin map:**
-  - USART1 — PA9 (TX), PA10 (RX); TX used for logging/diagnostics
-  - SPI1 — PA4 (CS, software GPIO), PA5 (SCK), PA6 (MISO), PA7 (MOSI); mode 0, fPCLK/256
-  - I2C1 — PB6 (SCL), PB7 (SDA); 100 kHz standard mode
+## Wiring 
+
 
 ## Architecture
 
@@ -28,17 +27,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 | Allocation table | `0x001000` (sectors 1–3) | one `AllocationEntry` per data sector |
 | Data | `0x004000` (sectors 4+) | file pages |
 
-**Key data structures:**
-- **`Superblock`** — magic + format version + geometry. `fs_init` validates magic/version and reformats if missing or stale (version is bumped on any on-flash layout change).
-- **`PageHeader`** (12 B, prepended to each 256 B page) — `state`, `file_id`, `file_offset`, `data_length`, and a **CRC16** over the 244 B payload, verified on every read.
-- **`DirectoryEntry`** — `filename[16]`, `file_id`, `file_size`, `firstpage_addr`, `status`. `firstpage_addr` is `0xFFFFFFFF` until the first write, so reads of an unwritten file fail cleanly.
-- **`AllocationEntry`** (5 B, `__attribute__((packed))`) — per-sector `state` + `erase_count`. Packed so the table fits the 3 reserved sectors instead of spilling into data sector 0.
-
-**Wear leveling:** `fs_find_free_sector` selects the free data sector with the **lowest `erase_count`**, incremented on each write. *(Current limitation: overwritten sectors are not reclaimed — the log fills flash monotonically over ~2044 writes.)*
-
-**Integrity:** CRC16-CCITT (poly `0x1021`, init `0xFFFF`) per page; a mismatch makes the read fail rather than return corrupt data.
-
-## Driver Stack
+## Software Architecture 
 
 Bottom-up, each layer a thin register-level interface:
 
