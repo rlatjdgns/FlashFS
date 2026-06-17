@@ -54,17 +54,6 @@ The code is built bottom-up, with each layer only talking to the one directly be
 * **fs.cpp** — The actual file system. Manages the superblock, directory, and allocation table, and exposes the main API: fs_init, fs_create, fs_write, fs_read. Pages are CRC-checked and writes are spread across sectors for wear leveling.
 * **BME280.cpp** — Sets up I2C1 to talk to the BME280 sensor, then handles reading temperature and running it through Bosch's compensation math. Calibration data is read once at startup.
 
-## Demo
-
-`main.cpp` runs a persistent sensor-logging loop:
-
-1. Initializes UART/SPI/FS/BME280 and creates 32 per-slot files (`file_id` 0–31).
-2. **Each iteration** (~24 s apart — an uncalibrated busy-wait delay, not a timer): reads the BME280 temperature, writes a `SensorReading {seq, temp in units of 0.01°C}` to slot `seq % 32`, and streams a live `seq + temp` record (big-endian `uint32` + `int32`) over UART.
-3. **Every 5th iteration:** wraps a readback of all 32 slots in `READBACK:` / `END` markers, streaming each stored `seq + temp` record (CRC-verified) — proving round-trip integrity.
-4. **Power-cycle persistence:** on boot `fs_init` finds the existing superblock and reuses the directory, so prior readings are immediately readable.
-
-`tools/listen.py` decodes the mixed text/binary UART stream on the host.
-
   ## Visualization
 
   - **`tools/listen.py`** — decodes the board's mixed text/binary UART stream on the host and prints each line and `seq + temp` record to the console.
@@ -86,6 +75,7 @@ The code is built bottom-up, with each layer only talking to the one directly be
 ```bash
 python3 tools/visualize.py /dev/cu.usbserial-0001 115200       # live temperature plot
 python3 tools/flash_analyzer.py /dev/cu.usbserial-0001 115200  # wear chart (then press RESET)
+```
 
 ## Build and Flash
 
