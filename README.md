@@ -35,7 +35,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 * TXD → PA10 (STM32 RX)
 * GND → GND
 
-## Architecture
+## Hardware Architecture
 ![Hardware Architecture](docs/architecture.png)
 **Flash layout** (2048 × 4 KB sectors):
 
@@ -49,12 +49,11 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 
 Bottom-up, each layer a thin register-level interface:
 
-- **UART** (`uart.cpp`) — USART1 TX at 115200 (BRR=69 @ 8 MHz). Byte/string output for logging.
-- **SPI** (`spi.cpp`) — SPI1 master, mode 0, software NSS on PA4, full-duplex byte transfer with bounded timeouts; drains stale RXNE around every byte.
-- **Flash** (`flash.cpp`) — EN25Q64 commands: WREN (`0x06`), RDSR (`0x05`), sector-erase (`0x20`), page-program (`0x02`), read (`0x03`); 24-bit addressing, WIP-polled with a bounded timeout.
-- **File system** (`fs.cpp`) — superblock/directory/allocation management, CRC-checked pages, wear-leveled allocation. API: `fs_init`, `fs_create`, `fs_write`, `fs_read`.
-- **I2C** (`BME280.cpp`) — I2C1 master @ 100 kHz, bounded-timeout transactions, BUSY-before-START guard, RM0008 single-byte receive sequence.
-- **BME280** (`BME280.cpp`) — sensor config + Bosch fixed-point temperature compensation; calibration read once at init.
+**uart.cpp** — Sets up USART1 and sends bytes/strings over serial at 115200 baud. This is how the board talks to the computer, used for all logging and debug output.
+**spi.cpp** — Drives SPI1 as master to talk to the flash chip. Handles full-duplex byte transfers and makes sure stale data gets drained off the receive register around every byte so reads don't come back garbage.
+**flash.cpp** — Sends the EN25Q64's command set over SPI: write enable, read status, sector erase, page program, and read. Handles 24-bit addressing and waits for the chip to finish each operation before moving on.
+**fs.cpp** — The actual file system. Manages the superblock, directory, and allocation table, and exposes the main API: fs_init, fs_create, fs_write, fs_read. Pages are CRC-checked and writes are spread across sectors for wear leveling.
+**BME280.cpp** — Sets up I2C1 to talk to the BME280 sensor, then handles reading temperature and running it through Bosch's compensation math. Calibration data is read once at startup.
 
 ## Demo
 
