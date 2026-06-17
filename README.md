@@ -49,11 +49,11 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 
 Bottom-up, each layer a thin register-level interface:
 
-**uart.cpp** — Sets up USART1 and sends bytes/strings over serial at 115200 baud. This is how the board talks to the computer, used for all logging and debug output.
-**spi.cpp** — Drives SPI1 as master to talk to the flash chip. Handles full-duplex byte transfers and makes sure stale data gets drained off the receive register around every byte so reads don't come back garbage
-**flash.cpp** — Sends the EN25Q64's command set over SPI: write enable, read status, sector erase, page program, and read. Handles 24-bit addressing and waits for the chip to finish each operation before moving on.
-**fs.cpp** — The actual file system. Manages the superblock, directory, and allocation table, and exposes the main API: fs_init, fs_create, fs_write, fs_read. Pages are CRC-checked and writes are spread across sectors for wear leveling.
-**BME280.cpp** — Sets up I2C1 to talk to the BME280 sensor, then handles reading temperature and running it through Bosch's compensation math. Calibration data is read once at startup.
+* **uart.cpp** — Sets up USART1 and sends bytes/strings over serial at 115200 baud. This is how the board talks to the computer, used for all logging and debug output.
+* **spi.cpp** — Drives SPI1 as master to talk to the flash chip. Handles full-duplex byte transfers and makes sure stale data gets drained off the receive register around every byte so reads don't come back garbage
+* **flash.cpp** — Sends the EN25Q64's command set over SPI: write enable, read status, sector erase, page program, and read. Handles 24-bit addressing and waits for the chip to finish each operation before moving on.
+* **fs.cpp** — The actual file system. Manages the superblock, directory, and allocation table, and exposes the main API: fs_init, fs_create, fs_write, fs_read. Pages are CRC-checked and writes are spread across sectors for wear leveling.
+* **BME280.cpp** — Sets up I2C1 to talk to the BME280 sensor, then handles reading temperature and running it through Bosch's compensation math. Calibration data is read once at startup.
 
 ## Demo
 
