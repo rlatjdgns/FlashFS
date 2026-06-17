@@ -46,8 +46,7 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 | Data | `0x004000` (sectors 4+) | file pages |
 
 ## Software Architecture 
-
-Bottom-up, each layer a thin register-level interface:
+The code is built bottom-up, with each layer only talking to the one directly below it. Each .cpp file is one layer:
 
 * **uart.cpp** — Sets up USART1 and sends bytes/strings over serial at 115200 baud. This is how the board talks to the computer, used for all logging and debug output.
 * **spi.cpp** — Drives SPI1 as master to talk to the flash chip. Handles full-duplex byte transfers and makes sure stale data gets drained off the receive register around every byte so reads don't come back garbage
