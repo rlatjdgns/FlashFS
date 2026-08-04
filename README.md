@@ -116,3 +116,6 @@ make flash       # program via OpenOCD / ST-Link
 make erase_flash # mass-erase MCU flash, then program
 make test        # host unit tests (RAM-backed flash stub — no hardware needed)
 ```
+
+## Related
+**[TACTNET](https://github.com/rlatjdgns/Tactnet)** — 3-node LoRa mesh network in C++ with custom UART/I2C drivers, priority task scheduler, and timestamp-based failover.
