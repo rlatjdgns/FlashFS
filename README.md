@@ -6,16 +6,16 @@ A bare- metal flash file system for STM32 Blue Pill from scratch in C++, buildin
 A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer — reset/vector table, `.data`/`.bss` init, UART/SPI/I2C drivers, the EN25Q64 NOR command layer, and the file system itself — is hand-written against the reference manual with no vendor abstractions and no C library. It persists BME280 sensor readings to an 8 MB SPI NOR chip with dynamic wear leveling, per-page CRC integrity, and power-cycle persistence.
 
 ## Hardware
-- STM32 
+- STM32
 - EN25Q64 SPI NOR Flash (8MB)
 - Bosch BME280
 - CP2102 USB-UART Adapter
 - ST-Link V2 Programmer
 
-- **Pin map:**
-  - USART1 — PA9 (TX), PA10 (RX)
-  - SPI1 — PA4 (CS, software GPIO), PA5 (SCK), PA6 (MISO), PA7 (MOSI)
-  - I2C1 — PB6 (SCL), PB7 (SDA)
+**Pin map:**
+- USART1 — PA9 (TX), PA10 (RX)
+- SPI1 — PA4 (CS, software GPIO), PA5 (SCK), PA6 (MISO), PA7 (MOSI)
+- I2C1 — PB6 (SCL), PB7 (SDA)
 
 ## Hardware Architecture
 ![Hardware Architecture](docs/architecture.png)
