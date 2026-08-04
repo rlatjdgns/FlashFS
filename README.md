@@ -75,9 +75,6 @@ Bottom-up, each layer a thin register-level interface:
 `tools/listen.py` decodes the mixed text/binary UART stream on the host.
 
 ## Key Technical Challenges
-
-## Key Technical Challenges
-
 ### SPI full-duplex stale RXNE
 - **Symptom:** JEDEC ID returned plausible-looking but wrong bytes, and every subsequent read returned data from the *previous* transaction — reads were offset by one transfer, not corrupted.
 - **How it was found:** Bit-banged the same command sequence on GPIO and compared against the hardware SPI path. The bit-banged version read correctly, isolating the fault to the peripheral's data register rather than wiring or the flash part.
