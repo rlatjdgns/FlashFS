@@ -1,18 +1,16 @@
 # STM32 Bare-Metal Flash File System
-A bare- metal flash file system for STM32 Blue Pill from scratch in C++, building up from low-level hardware drivers to a working filesystem layer with zero external dependencies.
+A bare- metal flash file system for STM32 Blue Pill from scratch in C++, building up from low-level hardware drivers to a working filesystem layer with zero external dependencies for firmware.
 
 ## Project Overview
 
-A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer — reset/vector table, `.data`/`.bss` init, UART/SPI/I2C drivers, the EN25Q64 NOR command layer, and the file system itself — is hand-written against the reference manual with no vendor abstractions and no C library. It persists BME280 sensor readings to an 8 MB SPI NOR chip with wear leveling, per-page CRC integrity, and power-cycle persistence.
+A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer — reset/vector table, `.data`/`.bss` init, UART/SPI/I2C drivers, the EN25Q64 NOR command layer, and the file system itself — is hand-written against the reference manual with no vendor abstractions and no C library. It persists BME280 sensor readings to an 8 MB SPI NOR chip with dynamic wear leveling, per-page CRC integrity, and power-cycle persistence.
 
 ## Hardware
-| Component | Quantity |
-|-----------|----------|
-| STM32 | 1 |
-| EN25Q64 SPI NOR Flash (8MB) | 1 |
-| Bosch BME280| 1 |
-| CP2102 USB-UART Adapter | 1 |
-| ST-Link V2 Programmer | 1 |
+- STM32 
+- EN25Q64 SPI NOR Flash (8MB)
+- Bosch BME280
+- CP2102 USB-UART Adapter
+- ST-Link V2 Programmer 
 
 ## Wiring
 
@@ -51,7 +49,8 @@ A from-scratch flash file system for the STM32F103C8T6 (Cortex-M3). Every layer 
 - **`DirectoryEntry`** — `filename[16]`, `file_id`, `file_size`, `firstpage_addr`, `status`. `firstpage_addr` is `0xFFFFFFFF` until the first write, so reads of an unwritten file fail cleanly.
 - **`AllocationEntry`** (5 B, `__attribute__((packed))`) — per-sector `state` + `erase_count`. Packed so the table fits the 3 reserved sectors instead of spilling into data sector 0.
 
-**Wear leveling:** `fs_find_free_sector` selects the free data sector with the **lowest `erase_count`**, incremented on each write. *(Current limitation: overwritten sectors are not reclaimed — the log fills flash monotonically over ~2044 writes.)*
+**Wear leveling:** `fs_find_free_sector` selects the free data sector with the lowest `erase_count`, incremented on each write. **Greedy least-erased-first (dynamic wear leveling)**
+*(Current limitation: overwritten sectors are not reclaimed — the log fills flash monotonically over ~2044 writes.)*
 
 ## Driver Stack
 
@@ -74,6 +73,14 @@ Bottom-up, each layer a thin register-level interface:
 4. **Power-cycle persistence:** on boot `fs_init` finds the existing superblock and reuses the directory, so prior readings are immediately readable.
 
 `tools/listen.py` decodes the mixed text/binary UART stream on the host.
+
+## Key Technical Challenges
+
+- **SPI full-duplex stale RXNE** — draining the shifted-in byte after every transmit to keep reads in sync.
+- **NOR write model** — erase-before-write, since NOR clears bits only 1→0.
+- **I2C single-byte receive (EV6_1)** — the exact ACK/STOP ordering a 1-byte read requires per RM0008.
+- **Brownout during sector erase** — the erase current spike sags the 3.3 V rail; surfaced with bounded timeouts.
+- **Root-causing implausible readings** — traced wild temperatures to an uninitialized readback buffer, not a failed I2C read.
 
 ## Visualization
 `tools/visualize.py` plots the UART stream live with matplotlib. The **blue line** is the temperature the BME280 measures each loop and the **orange dots** are readings the firmware reads back out of flash every 5th loop, each placed at its stored sequence number. Dots tracking the line confirm the file system stores and returns data intact. 
@@ -106,11 +113,3 @@ make flash       # program via OpenOCD / ST-Link
 make erase_flash # mass-erase MCU flash, then program
 make test        # host unit tests (RAM-backed flash stub — no hardware needed)
 ```
-
-## Key Technical Challenges
-
-- **SPI full-duplex stale RXNE** — draining the shifted-in byte after every transmit to keep reads in sync.
-- **NOR write model** — erase-before-write, since NOR clears bits only 1→0.
-- **I2C single-byte receive (EV6_1)** — the exact ACK/STOP ordering a 1-byte read requires per RM0008.
-- **Brownout during sector erase** — the erase current spike sags the 3.3 V rail; surfaced with bounded timeouts.
-- **Root-causing implausible readings** — traced wild temperatures to an uninitialized readback buffer, not a failed I2C read.
