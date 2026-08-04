@@ -76,11 +76,33 @@ Bottom-up, each layer a thin register-level interface:
 
 ## Key Technical Challenges
 
-- **SPI full-duplex stale RXNE** — draining the shifted-in byte after every transmit to keep reads in sync.
-- **NOR write model** — erase-before-write, since NOR clears bits only 1→0.
-- **I2C single-byte receive (EV6_1)** — the exact ACK/STOP ordering a 1-byte read requires per RM0008.
-- **Brownout during sector erase** — the erase current spike sags the 3.3 V rail; surfaced with bounded timeouts.
-- **Root-causing implausible readings** — traced wild temperatures to an uninitialized readback buffer, not a failed I2C read.
+## Key Technical Challenges
+
+### SPI full-duplex stale RXNE
+- **Symptom:** JEDEC ID returned plausible-looking but wrong bytes, and every subsequent read returned data from the *previous* transaction — reads were offset by one transfer, not corrupted.
+- **How it was found:** Bit-banged the same command sequence on GPIO and compared against the hardware SPI path. The bit-banged version read correctly, isolating the fault to the peripheral's data register rather than wiring or the flash part.
+- **The fix:** SPI is inherently full-duplex — every byte shifted out shifts one in. `spi_transmit()` now drains RXNE both before transmitting (clearing any stale byte) and after (discarding the garbage byte clocked in alongside the command), keeping the receive FIFO aligned with the transaction.
+
+### Brownout during sector erase
+- **Symptom:** Erases intermittently hung or completed with corrupt data,
+  clustered around multi-sector operations. Non-deterministic across otherwise
+  identical runs.
+- **How it was found:** Replacing infinite `while` polling loops with bounded
+  timeouts converted silent hangs into reported failures, which localized the
+  fault to `flash_wait_busy()` after `flash_sector_erase()`.
+- **The fix:** Erase draws a current spike large enough to sag a 3.3 V rail
+  shared between the CP2102 and the STM32. Moving each device to a separate host
+  USB port eliminated the failures across 16,000 subsequent writes.
+
+### I2C single-byte receive sequence (EV6_1)
+- **Symptom:** BME280 single-byte register reads returned stale or shifted data; the chip-ID read would not settle at 0x60.
+- **How it was found:** Traced the transfer against the EV6_1 event sequence in RM0008 §26.3.3 and compared each step against the peripheral status registers.
+- **The fix:** A 1-byte read requires a specific order: clear ACK, read SR2 to clear ADDR, set STOP, *then* wait on RXNE. Performing these out of order lets the peripheral ACK a byte that was never requested. Corrected ordering yielded a stable 0x60 and ~27.43 °C.
+
+### Implausible sensor readings from an uninitialized buffer
+- **Symptom:** Temperature readings swung wildly between runs while the I2C transaction itself reported success.
+- **How it was found:** The failure pointed at I2C by default. Dumping the raw readback buffer before compensation showed the transport was fine — the garbage was already present in the destination buffer.
+- **The fix:** With no stdlib, the buffer was never zeroed and the read left upper bytes untouched. Explicit byte-loop initialization before every readback. Confirmed the class of bug was transport-independent, not I2C-specific.
 
 ## Visualization
 `tools/visualize.py` plots the UART stream live with matplotlib. The **blue line** is the temperature the BME280 measures each loop and the **orange dots** are readings the firmware reads back out of flash every 5th loop, each placed at its stored sequence number. Dots tracking the line confirm the file system stores and returns data intact. 
