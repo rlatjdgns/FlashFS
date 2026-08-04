@@ -1,5 +1,5 @@
 # STM32 Bare-Metal Flash File System
-A baremental flash file system for STM32 Blue Pill from scratch in C++, uilding up from low-level hardware drivers to a working filesystem layer with zero external dependencies.
+A bare- metal flash file system for STM32 Blue Pill from scratch in C++, building up from low-level hardware drivers to a working filesystem layer with zero external dependencies.
 
 ## Project Overview
 
